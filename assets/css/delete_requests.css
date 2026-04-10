@@ -1,0 +1,132 @@
+.filter-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.table-card {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #f1f5f9;
+    overflow: hidden;
+}
+
+.del-table th {
+    padding: 16px 12px;
+    background-color: #ffffff;
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.del-table td {
+    padding: 12px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #475569;
+    font-size: 14px;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-cell img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-cell .user-name {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.border-green {
+    border: 1px solid #10b981;
+    color: #10b981;
+}
+
+.border-red {
+    border: 1px solid #ef4444;
+    color: #ef4444;
+}
+
+.btn-options {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #94a3b8;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-options:hover {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: #ffffff;
+    border-top: 1px solid #f1f5f9;
+}
+
+.rows-per-page {
+    font-size: 13px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rows-per-page select {
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.pagination {
+    display: flex;
+    gap: 8px;
+}
+
+.page-btn {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.page-btn:hover {
+    background: #f1f5f9;
+}
+
+.active-page {
+    background: #293092 !important;
+    color: #ffffff;
+    font-weight: 600;
+}
