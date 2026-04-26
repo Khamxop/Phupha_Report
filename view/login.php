@@ -26,8 +26,8 @@ if (isset($_SESSION['user'])) {
 
     <div class="login-container">
         <div class="login-header">
-            <img src="../img/logo-icon.png" alt="Logo" class="logo" width="100" height="100">
-            <h2>Lao-Viet Hospital</h2>
+            <img src="../img/Phupha.png" alt="Logo" class="logo" width="100" height="100">
+            <h2>ໂຮງງານ ນ້ຳດື່ມພູຜາ</h2>
             <p>ເຂົ້າສູ່ລະບົບ</p>
         </div>
 

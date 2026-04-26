@@ -3,11 +3,11 @@
         <button class="toggle-btn" id="toggleSidebarBtn">
             <i class="fa-solid fa-bars"></i>
         </button>
-        <div class="search-bar">
+        <!-- <div class="search-bar">
             <i class="fa-solid fa-search"></i>
             <input type="text" placeholder="Search">
             <i class="fa-solid fa-expand" style="cursor:pointer; color: var(--text-muted);"></i>
-        </div>
+        </div> -->
 
     </div>
     <div class="topbar-center">
@@ -27,8 +27,8 @@
 
     <div class="topbar-right">
         <div class="topbar-icons">
-            <button><i class="fa-solid fa-gear"></i></button>
-            <button><i class="fa-regular fa-moon"></i></button>
+            <!-- <button><i class="fa-solid fa-gear"></i></button>
+            <button><i class="fa-regular fa-moon"></i></button> -->
         </div>
         <a href="index.php?page=account" class="user-profile" style="display:flex; align-items:center; gap:10px; text-decoration: none; color: inherit; cursor: pointer;">
             <div class="user-info" style="text-align: right;">

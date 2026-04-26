@@ -7,8 +7,8 @@ $page = $_GET['page'] ?? 'admindashboard';
 
 // Validation: Only allow specific pages to be loaded securely
 $validPages = [
-    'admindashboard', 'patients', 'doctor-dashboard', 'patient-dashboard', 
-    'employees', 'account', 'roles', 'permissions', 'delete_requests'
+    'admindashboard', 'Customer', 'doctor-dashboard', 'patient-dashboard', 
+    'employees', 'account', 'Customize_Report', 'Warehouse_Report'
 ];
 
 if (!in_array($page, $validPages)) {

@@ -34,7 +34,7 @@ if (!isset($data['row'])) {
 }
 
 // AppSheet table name
-$tableName = 'Patients';
+$tableName = 'Customer';
 
 // Set Date format for Date/Time columns to match MM/DD/YYYY if they are included
 if ($action === 'Add') {

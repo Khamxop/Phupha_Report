@@ -1,9 +1,9 @@
 :root {
-    --primary-color: #293092;
+    --primary-color: #295557;
     --bg-color: #f8f9fd;
     --text-color: #333333;
     --border-color: #eaedf2;
-    --btn-hover: #202672;
+    --btn-hover: #295557;
 }
 
 * {
@@ -94,7 +94,7 @@ body {
 
 .form-control:focus {
     outline: none;
-    border-color: rgba(41, 48, 146, 0.4);
+    border-color:#295557;
     box-shadow: 0 0 0 3px rgba(41, 48, 146, 0.1);
 }
 

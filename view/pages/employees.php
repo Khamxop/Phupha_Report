@@ -1,7 +1,7 @@
 <?php
 // Employees Data Fetching
 if (isset($appId) && isset($accessKey)) {
-    $employees = getAppSheetData('Employees', $appId, $accessKey);
+    $employees = getAppSheetData('Employee', $appId, $accessKey);
 } else {
     $employees = [];
 }
@@ -19,7 +19,7 @@ if (isset($appId) && isset($accessKey)) {
         </div>
     </div>
 
-    <div class="patients-container">
+    <div class="Customer-container">
         <div class="table-responsive">
             <table class="report-table">
                 <thead>
@@ -38,8 +38,8 @@ if (isset($appId) && isset($accessKey)) {
                     <?php if (isset($employees) && is_array($employees) && count($employees) > 0): ?>
                         <?php foreach ($employees as $e): ?>
                             <tr>
-                                <td><strong><?php echo htmlspecialchars($e['EmployeeID'] ?? ''); ?></strong></td>
-                                <td><?php echo htmlspecialchars($e['EmployeeName'] ?? 'ບໍ່ລະບຸ'); ?></td>
+                                <td><strong><?php echo htmlspecialchars($e['Emp_ID'] ?? ''); ?></strong></td>
+                                <td><?php echo htmlspecialchars($e['Name'] ?? 'ບໍ່ລະບຸ'); ?></td>
                                 <td><?php echo htmlspecialchars($e['Position'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($e['Department'] ?? ''); ?></td>
                                 <td>

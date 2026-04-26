@@ -12,6 +12,20 @@ $phone = $userData['Phone'] ?? 'Not Specified';
 $location = ($userData['Village'] ?? '') . ', ' . ($userData['District'] ?? '') . ', ' . ($userData['Province'] ?? '');
 // Clean up location if everything was empty
 if (trim($location, ', ') == '') $location = 'Not Specified';
+
+// Fetch Employee data from Appsheet to get image
+$empImage = '';
+if (isset($appId) && isset($accessKey)) {
+    $employees = getAppSheetData('Employee', $appId, $accessKey);
+    if (is_array($employees)) {
+        foreach ($employees as $emp) {
+            if (($emp['Emp_ID'] ?? '') == $id) {
+                $empImage = $emp['Image'] ?? '';
+                break;
+            }
+        }
+    }
+}
 ?>
 
 <link rel="stylesheet" href="../assets/css/account.css">
@@ -27,7 +41,11 @@ if (trim($location, ', ') == '') $location = 'Not Specified';
             <div class="profile-cover"></div>
             <div class="profile-avatar-wrapper">
                 <div class="profile-avatar">
-                    <i class="fa-solid fa-user-tie"></i>
+                    <?php if (!empty($empImage)): ?>
+                        <img src="<?php echo htmlspecialchars($empImage); ?>" alt="Profile Image" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                    <?php else: ?>
+                        <i class="fa-solid fa-user-tie"></i>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="profile-main-info">

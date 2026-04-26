@@ -5,37 +5,7 @@ $sevenDaysAgo = strtotime('-7 days');
 $fourteenDaysAgo = strtotime('-14 days');
 $now = time();
 
-// Calculate Claims
-// ຄຳນວນຈຳນວນການຊຳລະປະກັນໄພໂດຍອີງໃສ່ຂໍ້ມູນຈາກ $sell
-// ເຂື່ອມກັບຖານຂໍ້ມູນໂດຍຜ່ານການໃຊ້ຂໍ້ມູນຈາກ AppSheet API ທີ່ຖືກດຶງໄດ້ກ່ອນໜ້າ
-$claimsTotal = 0;
-$last7Claims = 0;
-$prev7Claims = 0;
 
-if (isset($sell) && is_array($sell)) {
-    foreach ($sell as $op) {
-        $insuranceId = $op['InsuranceID'] ?? '';
-        $claimStatus = $op['ClaimStatus'] ?? '';
-
-        if (!empty($insuranceId) && $claimStatus === 'ຊຳລະແລ້ວ') {
-            $labTotal = floatval($op['LabOrderTotalPrice'] ?? 0);
-            $medTotal = floatval($op['MedicineTotalPrice'] ?? 0);
-            $amount = $labTotal + $medTotal;
-            $claimsTotal += $amount;
-
-            $opTimeStr = $op['DateTime'] ?? $op['Date'] ?? '';
-            $opTime = strtotime($opTimeStr);
-            if (!$opTime)
-                $opTime = $now;
-
-            if ($opTime >= $sevenDaysAgo) {
-                $last7Claims += $amount;
-            } elseif ($opTime >= $fourteenDaysAgo && $opTime < $sevenDaysAgo) {
-                $prev7Claims += $amount;
-            }
-        }
-    }
-}
 // Calculate Payments by Currency
 // ຄຳນວນການຈ່າຍເງິນໂດຍອີງໃສ່ສະກຸນເງິນໂດຍອີງໃສ່ຂໍ້ມູນຈາກ $payment
 // ເຂື່ອມກັບຖານຂໍ້ມູນໂດຍຜ່ານການໃຊ້ຂໍ້ມູນຈາກ AppSheet API
@@ -64,7 +34,7 @@ if (isset($payment) && is_array($payment)) {
         // ສາມາດປ່ຽນໄປໃຊ້: if ($baseCurrency !== 'LAK') { continue; }
         // -------------------------
 
-        $payAmount = floatval($payRow['Pay'] ?? 0);
+        $payAmount = floatval($payRow['Total_Pay'] ?? 0);
 
         $paymentStr = $payRow['DateTime'] ?? $payRow['Date'] ?? '';
         $paymentTime = strtotime($paymentStr);
@@ -93,63 +63,56 @@ if (isset($payment) && is_array($payment)) {
     }
 }
 
-// Helper to calculate top 15 items dynamically
-// ຄຳນວນລາຍການທີ່ນິຍົມສຸດໂດຍອີງໃສ່ຂໍ້ມູນຈາກ $laborderdetails ແລະ $prescriptions
-// ເຂື່ອມກັບຖານຂໍ້ມູນໂດຍຜ່ານການໃຊ້ຂໍ້ມູນຈາກ AppSheet API
+// Calculate Total_Product from Payment table
+$totalProduct = 0;
+$last7Product = 0;
+$prev7Product = 0;
 
-$laborderdetails = isset($laborderdetails) ? $laborderdetails : [];
-$prescriptions = isset($prescriptions) ? $prescriptions : [];
+if (isset($payment) && is_array($payment)) {
+    foreach ($payment as $payRow) {
+        $currency = strtoupper(trim($payRow['Currency'] ?? ''));
+        $baseCurrency = strtoupper(trim($payRow['Base_Currency'] ?? ''));
 
-// ສຳລັບ Lab Orders: ນັບຈຳນວນແຕ່ລະລາຍການ (count rows), ຊື່ຖັນແມ່ນ LabOrderName
-$topLabs = getTopItems($laborderdetails, 'LabOrderName', null);
-
-// ສຳລັບ Prescriptions: ບວກລວມຈຳນວນໃນຖັນ Quantity, ຊື່ຖັນແມ່ນ MedicineID
-$topMeds = getTopItems($prescriptions, 'MedicineID', 'Quantity');
-
-$monthlyCases = array_fill(1, 12, 0);
-$statTotal = 0;
-$statWalkin = 0;
-$statBooking = 0;
-$statCancel = 0;
-$statCompleted = 0;
-
-// ຄຳນວນສະຖິຕິການປະຕິບັດໂດຍອີງໃສ່ຂໍ້ມູນຈາກ $sell
-// ເຂື່ອມກັບຖານຂໍ້ມູນໂດຍຜ່ານການໃຊ້ຂໍ້ມູນຈາກ AppSheet API
-$totalPatients = isset($patients) && is_array($patients) ? count($patients) : 0;
-
-if (isset($sell) && is_array($sell)) {
-    foreach ($sell as $op) {
-        $statTotal++;
-        $type = strtolower(trim($op['Type'] ?? ''));
-        if (strpos($type, 'walk') !== false) {
-            $statWalkin++;
-        } elseif (strpos($type, 'book') !== false) {
-            $statBooking++;
+        // --- ສ່ວນທີ່ເພີ່ມ/ແກ້ໄຂໃໝ່ ---
+        // ຖ້າ Base_Currency ເປັນ THB ແມ່ນໃຫ້ຂ້າມໄປເລີຍ (ບໍ່ເອົາມາໄລ່)
+        if ($baseCurrency === 'THB') {
+            continue;
         }
 
-        $status = strtolower(trim($op['Status'] ?? ''));
-        if ($status === 'cancel' || $status === 'ຍົກເລີກ') {
-            $statCancel++;
-        }
+        // ຖ້າຕ້ອງການບັງຄັບວ່າ "ຕ້ອງເປັນ LAK ເທົ່ານັ້ນ" ຈຶ່ງຈະເອົາ 
+        // ສາມາດປ່ຽນໄປໃຊ້: if ($baseCurrency !== 'LAK') { continue; }
+        // -------------------------
 
-        $appointment = trim($op['Appointment'] ?? '');
-        if ($appointment === 'ສຳເລັດ') {
-            $statCompleted++;
-        }
+        $paidAmount = floatval($payRow['Paid'] ?? 0);
 
-        // Month parsing
-        $dateStr = $op['DateTime'] ?? $op['Date'] ?? '';
-        if ($dateStr) {
-            $timestamp = strtotime($dateStr);
-            if ($timestamp) {
-                $month = (int) date('n', $timestamp);
-                if ($month >= 1 && $month <= 12) {
-                    $monthlyCases[$month]++;
-                }
-            }
+        $paymentStr = $payRow['DateTime'] ?? $payRow['Date'] ?? '';
+        $paymentTime = strtotime($paymentStr);
+        if (!$paymentTime)
+            $paymentTime = $now;
+
+        $isCurrent = $paymentTime >= $sevenDaysAgo;
+        $isPrevious = $paymentTime >= $fourteenDaysAgo && $paymentTime < $sevenDaysAgo;
+
+        // ກວດສອບສະກຸນເງິນເພື່ອແຍກບວກເຂົ້າຕົວປ່ຽນ
+        if ($currency === 'LAK' || $currency === 'KIP' || strpos($currency, 'LAK') !== false) {
+            $totalProduct += $paidAmount;
+            if ($isCurrent) $last7Product += $paidAmount;
+            if ($isPrevious) $prev7Product += $paidAmount;
+            
+        } elseif ($currency === 'THB' || $currency === 'BAHT' || strpos($currency, 'THB') !== false) {
+            $totalProduct += $paidAmount;
+            if ($isCurrent) $last7Product += $paidAmount;
+            if ($isPrevious) $prev7Product += $paidAmount;
+            
+        } elseif ($currency === 'USD' || $currency === 'DOLLAR' || strpos($currency, 'USD') !== false) {
+            $totalProduct += $paidAmount;
+            if ($isCurrent) $last7Product += $paidAmount;
+            if ($isPrevious) $prev7Product += $paidAmount;
         }
     }
 }
+
+
 
 // ---------------------------------------------------------
 // ລະບົບລາຍງານລວມ (Income & Expenses Calculations)
@@ -166,11 +129,8 @@ $rptIncomeCash = 0;
 $rptIncomeTransfer = 0;
 $rptDiscount = 0;
 
-$rptIncomeCheckup = 0;
-$rptIncomeMeds = 0;
 $rptIncomeGeneral = 0;
 
-$rptExpenseBuyMeds = 0;
 $rptExpenseGeneral = 0;
 $rptExpenseSalary = 0;
 
@@ -183,9 +143,6 @@ $rptDiscountByCur = array_fill_keys($rptCurrencies, 0);
 $rptExpenseByCur = array_fill_keys($rptCurrencies, 0);
 
 // Specific Category Breakdowns by Currency
-$rptIncomeCheckupByCur = array_fill_keys($rptCurrencies, 0);
-$rptIncomeMedsByCur = array_fill_keys($rptCurrencies, 0);
-$rptExpenseBuyMedsByCur = array_fill_keys($rptCurrencies, 0);
 $rptExpenseSalaryByCur = array_fill_keys($rptCurrencies, 0);
 $rptExpenseGeneralByCur = array_fill_keys($rptCurrencies, 0);
 
@@ -195,8 +152,17 @@ $financialGroups = [
 ];
 
 // 1. ດຶງຂໍ້ມູນຈາກ Payment
+$seenPaymentIds = [];
 if (isset($payment) && is_array($payment)) {
     foreach ($payment as $pay) {
+        $payId = $pay['Pay_ID'] ?? $pay['Pay ID'] ?? $pay['Payment_ID'] ?? $pay['Payment ID'] ?? $pay['ID'] ?? null;
+        if ($payId !== null) {
+            if (isset($seenPaymentIds[$payId])) {
+                continue;
+            }
+            $seenPaymentIds[$payId] = true;
+        }
+
         $dateStr = $pay['DateTime'] ?? $pay['Date'] ?? '';
         $ts = strtotime($dateStr);
         if (!$ts)
@@ -208,14 +174,16 @@ if (isset($payment) && is_array($payment)) {
         $method = trim($pay['PaymentMethod'] ?? '');
         $discount = floatval($pay['Discount'] ?? 0);
 
-        $labAmount = floatval($pay['LabOrderAmount'] ?? 0);
-        $medAmount = floatval($pay['MedicineAmount'] ?? 0);
+        // --- ສ່ວນທີ່ເພີ່ມ/ແກ້ໄຂໃໝ່ ---
+        // ຖ້າ Base_Currency ເປັນ THB ແມ່ນໃຫ້ຂ້າມໄປເລີຍ (ບໍ່ເອົາມາໄລ່)
+        $baseCurrency = strtoupper(trim($pay['Base_Currency'] ?? ''));
+        if ($baseCurrency === 'THB') {
+            continue;
+        }
 
         // Summaries
         $rptIncomeTotal += $amount;
         $rptDiscount += $discount;
-        $rptIncomeCheckup += $labAmount;
-        $rptIncomeMeds += $medAmount;
 
         $cur = strtoupper(trim($pay['Currency'] ?? 'LAK'));
         if ($cur === 'KIP')
@@ -225,33 +193,91 @@ if (isset($payment) && is_array($payment)) {
         if ($cur === 'DOLLAR')
             $cur = 'USD';
 
+        $cashAmount = floatval($pay['Cash'] ?? 0);
+        $transferAmount = floatval($pay['Transfer'] ?? 0);
+        if ($cashAmount > 0) {
+            $rptIncomeCash += $cashAmount;
+            if (array_key_exists($cur, $rptCashByCur)) {
+                $rptCashByCur[$cur] += $cashAmount;
+            }
+        }
+        if ($transferAmount > 0) {
+            $rptIncomeTransfer += $transferAmount;
+            if (array_key_exists($cur, $rptTransferByCur)) {
+                $rptTransferByCur[$cur] += $transferAmount;
+            }
+        }
+
         if (array_key_exists($cur, $rptIncomeByCur)) {
             $rptIncomeByCur[$cur] += $amount;
             $rptDiscountByCur[$cur] += $discount;
-            $rptIncomeCheckupByCur[$cur] += $labAmount;
-            $rptIncomeMedsByCur[$cur] += $medAmount;
-            if (strpos($method, 'ສົດ') !== false || stripos($method, 'cash') !== false) {
-                $rptIncomeCash += $amount;
-                $rptCashByCur[$cur] += $amount;
-            } elseif (strpos($method, 'ໂອນ') !== false || stripos($method, 'transfer') !== false) {
-                $rptIncomeTransfer += $amount;
-                $rptTransferByCur[$cur] += $amount;
-            } else {
-                $rptIncomeCash += $amount;
-                $rptCashByCur[$cur] += $amount;
-            }
-        } else {
-            // Default logic if unknown currency
-            if (strpos($method, 'ສົດ') !== false || stripos($method, 'cash') !== false) {
-                $rptIncomeCash += $amount;
-            } elseif (strpos($method, 'ໂອນ') !== false || stripos($method, 'transfer') !== false) {
-                $rptIncomeTransfer += $amount;
-            } else {
-                $rptIncomeCash += $amount;
-            }
         }
+
+        $paymentType = '';
+        if ($cashAmount > 0) {
+            $paymentType = 'Cash';
+        } elseif ($transferAmount > 0) {
+            $paymentType = 'Transfer';
+        } elseif (strpos($method, 'ສົດ') !== false || stripos($method, 'cash') !== false) {
+            $paymentType = 'Cash';
+            $cashAmount = $amount;
+        } elseif (strpos($method, 'ໂອນ') !== false || stripos($method, 'transfer') !== false) {
+            $paymentType = 'Transfer';
+            $transferAmount = $amount;
+        } else {
+            $paymentType = $method ?: 'Unknown';
+        }
+
+        $payAmount = $amount;
+        if ($cashAmount > 0) {
+            $payAmount = $cashAmount;
+        } elseif ($transferAmount > 0) {
+            $payAmount = $transferAmount;
+        }
+
+        $financialGroups['income']['totalamount'] += $payAmount;
+        $financialGroups['income']['items'][] = [
+            'date' => date('n/j/Y', $ts),
+            'customerName' => $pay['Customer_Name'] ?? $pay['Customer'] ?? $pay['Customer Name'] ?? $pay['Payee'] ?? '',
+            'category' => $pay['Category'] ?? '',
+            'currency' => $cur,
+            'paymentType' => $paymentType,
+            'payAmount' => $payAmount,
+            'discount' => $discount,
+            'Total_Product' => $pay['Total_Product'] ?? '',
+            'MoneyRate' => $pay['Money Rate'] ?? '',
+            'cashAmount' => $cashAmount,
+            'transferAmount' => $transferAmount,
+            'payId' => $payId,
+            'amount' => $amount,
+            'totalamount' => $payAmount,
+            'Paid' => $paidAmount,
+        ];
     }
 }
+
+$customerPaymentStats = [];
+foreach ($financialGroups['income']['items'] as $item) {
+    $customerName = trim($item['customerName'] ?? '') ?: 'Unknown Customer';
+    if (!isset($customerPaymentStats[$customerName])) {
+        $customerPaymentStats[$customerName] = [
+            'name' => $customerName,
+            'count' => 0,
+            'sum' => 0
+        ];
+    }
+    $customerPaymentStats[$customerName]['count']++;
+    $customerPaymentStats[$customerName]['sum'] += floatval($item['Paid'] ?? 0);
+}
+
+$topPaymentCustomers = array_values($customerPaymentStats);
+usort($topPaymentCustomers, function ($a, $b) {
+    if ($b['sum'] === $a['sum']) {
+        return $b['count'] <=> $a['count'];
+    }
+    return $b['sum'] <=> $a['sum'];
+});
+$topPaymentCustomers = array_slice($topPaymentCustomers, 0, 10);
 
 // 2. ດຶງຂໍ້ມູນຈາກ IncomeExpenses
 $incomeexpenses = isset($incomeexpenses) ? $incomeexpenses : [];
@@ -285,10 +311,10 @@ if (is_array($incomeexpenses)) {
             $rptIncomeGeneral += $totalamount;
             if (array_key_exists($cur, $rptIncomeByCur)) {
                 $rptIncomeByCur[$cur] += $totalamount;
-                if (strpos($method, 'ເງິນສົດ') !== false || stripos($method, 'cash') !== false) {
+                if (strpos($method, 'ເງິນສົດ') !== false || stripos($method, 'Cash') !== false) {
                     $rptIncomeCash += $amount;
                     $rptCashByCur[$cur] += $amount;
-                } elseif (strpos($method, 'ເງິນໂອນ') !== false || stripos($method, 'transfer') !== false) {
+                } elseif (strpos($method, 'ເງິນໂອນ') !== false || stripos($method, 'Transfer') !== false) {
                     $rptIncomeTransfer += $pay;
                     $rptTransferByCur[$cur] += $pay;
                 } else {
@@ -299,11 +325,7 @@ if (is_array($incomeexpenses)) {
         }
         // Is Expense?
         elseif (strpos($type, 'ລາຍຈ່າຍ') !== false || stripos($type, 'expense') !== false || $type === 'out') {
-            if (strpos($category, 'ຢາ') !== false || strpos($category, 'med') !== false) {
-                $rptExpenseBuyMeds += $totalamount;
-                if (array_key_exists($cur, $rptExpenseBuyMedsByCur))
-                    $rptExpenseBuyMedsByCur[$cur] += $totalamount;
-            } elseif (strpos($category, 'ເງິນເດືອນ') !== false || strpos($category, 'salary') !== false) {
+            if (strpos($category, 'ເງິນເດືອນ') !== false || strpos($category, 'salary') !== false) {
                 $rptExpenseSalary += $totalamount;
                 if (array_key_exists($cur, $rptExpenseSalaryByCur))
                     $rptExpenseSalaryByCur[$cur] += $totalamount;
@@ -321,15 +343,35 @@ if (is_array($incomeexpenses)) {
         $isExpense = (strpos($type, 'ຈ່າຍ') !== false || stripos($type, 'expense') !== false || $type === 'out');
         $groupKey = $isExpense ? 'expense' : 'income';
 
+        $cashAmount = floatval($inex['Cash'] ?? 0);
+        $transferAmount = floatval($inex['Transfer'] ?? 0);
+        $paymentType = '';
+        if ($cashAmount > 0) {
+            $paymentType = 'Cash';
+        } elseif ($transferAmount > 0) {
+            $paymentType = 'Transfer';
+        } elseif (strpos($method, 'ເງິນສົດ') !== false || stripos($method, 'cash') !== false) {
+            $paymentType = 'Cash';
+            $cashAmount = $amount;
+        } elseif (strpos($method, 'ເງິນໂອນ') !== false || stripos($method, 'transfer') !== false) {
+            $paymentType = 'Transfer';
+            $transferAmount = $pay;
+        }
+        $payAmount = $cashAmount > 0 ? $cashAmount : ($transferAmount > 0 ? $transferAmount : max($amount, $pay, $totalamount));
+
         $financialGroups[$groupKey]['totalamount'] += $totalamount;
         $financialGroups[$groupKey]['items'][] = [
             'date' => date('n/j/Y', $ts),
+            'customerName' => $inex['Customer_Name'] ?? $inex['Customer'] ?? $inex['Payee'] ?? '',
             'category' => $inex['Category'] ?? '',
-            'description' => $inex['Description'] ?? '',
-            'currency' => $inex['Currency'] ?? 'LAK',
-            'method' => $method,
-            'cashAmount' => (strpos($method, 'ເງິນສົດ') !== false || stripos($method, 'cash') !== false) ? $amount : 0,
-            'transferAmount' => (strpos($method, 'ເງິນໂອນ') !== false || stripos($method, 'transfer') !== false) ? $pay : 0,
+            'currency' => $cur,
+            'paymentType' => $paymentType ?: ($method ?: 'Unknown'),
+            'payAmount' => $payAmount,
+            'discount' => floatval($inex['Discount'] ?? 0),
+            'Total_Product' => $inex['Total_Product'] ?? '',
+            'MoneyRate' => $inex['Money Rate'] ?? '',
+            'cashAmount' => $cashAmount,
+            'transferAmount' => $transferAmount,
             'payee' => $inex['Payee'] ?? '',
             'amount' => $amount,
             'totalamount' => $totalamount
@@ -337,7 +379,7 @@ if (is_array($incomeexpenses)) {
     }
 }
 
-$rptExpenseTotal = $rptExpenseBuyMeds + $rptExpenseGeneral + $rptExpenseSalary;
+$rptExpenseTotal = $rptExpenseGeneral + $rptExpenseSalary;
 $rptProfit = $rptIncomeTotal - $rptExpenseTotal;
 
 $rptProfitByCur = [];
@@ -349,113 +391,112 @@ foreach ($rptCurrencies as $c) {
 krsort($financialGroups);
 
 // ---------------------------------------------------------
-// ລະບົບລາຍງານປະກັນໄພ (Insurance Report Calculations)
-// ຄຳນວນລາຍງານປະກັນໄພໂດຍອີງໃສ່ຂໍ້ມູນຈາກ $sell ແລະ $payment
-// ເຂື່ອມກັບຖານຂໍ້ມູນໂດຍຜ່ານການໃຊ້ຂໍ້ມູນຈາກ AppSheet API
+// ລາຍງານປຽບທຽບເດືອນ (Month-to-Month Comparison)
+// ຄຳນວນລາຍຮັບສະເພາະໂດຍອີງໃສ່ PayDebt column ແລະ Sum ຂອງ Paid column
 // ---------------------------------------------------------
-// 1. Process Sell for Insurance Totals (LAK is default)
-if (isset($sell) && is_array($sell)) {
-    foreach ($sell as $op) {
-        $InsuranceLevel = trim($op['InsuranceLevel'] ?? '');
-        $providerName = trim($op['ProviderName'] ?? '');
-        if (empty($providerName))
-            continue; // Allow null ID if info exists? User wants company summary.
+$currentMonth = date('n');
+$currentYear = date('Y');
+$prevMonth = ($currentMonth == 1) ? 12 : $currentMonth - 1;
+$prevYear = ($currentMonth == 1) ? $currentYear - 1 : $currentYear;
 
-        $dateStr = $op['DateTime'] ?? $op['Date'] ?? '';
-        $ts = strtotime($dateStr);
-        if (!$ts || $ts < $startTs || $ts > $endTs)
-            continue;
+// Date ranges for current and previous month
+$currentMonthStart = strtotime(date('Y-m-01'));
+$currentMonthEnd = strtotime(date('Y-m-t 23:59:59'));
+$prevMonthStart = strtotime($prevYear . '-' . str_pad($prevMonth, 2, '0', STR_PAD_LEFT) . '-01');
+$prevMonthEnd = strtotime($prevYear . '-' . str_pad($prevMonth, 2, '0', STR_PAD_LEFT) . '-t 23:59:59');
 
-        $labTotal = floatval($op['LabOrderTotalPrice'] ?? 0);
-        $medTotal = floatval($op['MedicineTotalPrice'] ?? 0);
-        $totalAmt = $labTotal + $medTotal;
+// Initialize month comparison data
+$monthComparison = [
+    'sales' => ['current' => 0, 'previous' => 0, 'label' => 'ລາຍຮັບຈາກການຂາຍ'],
+    'debt' => ['current' => 0, 'previous' => 0, 'label' => 'ຮັບຈາກການຈ່າຍໜີ້'],
+    'total' => ['current' => 0, 'previous' => 0, 'label' => 'ລາຍຮັບທັ້ງໝົດ']
+];
 
-        $key = $providerName;
-        if (!isset($rptInsuranceData[$key])) {
-            $rptInsuranceData[$key] = [
-                'name' => $providerName,
-                'levels' => [], // Collect levels as well
-                'total' => 0,
-                'paid' => 0
-            ];
-        }
-        $rptInsuranceData[$key]['total'] += $totalAmt;
-        if (!empty($insuranceId) && !in_array($insuranceId, $rptInsuranceData[$key]['levels'])) {
-            $rptInsuranceData[$key]['levels'][] = $insuranceId;
-        }
-    }
-}
-
-// 2. Process Payment for Insurance Paid Totals
 if (isset($payment) && is_array($payment)) {
     foreach ($payment as $pay) {
-        $providerName = trim($pay['ProviderName'] ?? '');
-        $InsuranceLevel = trim($pay['InsuranceLevel'] ?? '');
-        if (empty($providerName))
-            continue;
-
-        $dateStr = $pay['DateTime'] ?? '';
+        $dateStr = $pay['DateTime'] ?? $pay['Date'] ?? '';
         $ts = strtotime($dateStr);
-        if (!$ts || $ts < $startTs || $ts > $endTs)
-            continue;
+        if (!$ts) continue;
 
-        $paidAmt = floatval($pay['Amount'] ?? 0);
-        $cur = strtoupper(trim($pay['Currency'] ?? 'LAK'));
-        if ($cur === 'KIP')
-            $cur = 'LAK';
-        if ($cur === 'BAHT')
-            $cur = 'THB';
-        if ($cur === 'DOLLAR')
-            $cur = 'USD';
+        $baseCurrency = strtoupper(trim($pay['Base_Currency'] ?? ''));
+        if ($baseCurrency === 'THB') continue;
 
-        $key = $providerName;
-        if (!isset($rptInsuranceData[$key])) {
-            $rptInsuranceData[$key] = [
-                'name' => $providerName,
-                'levels' => [],
-                'total' => 0,
-                'paid' => 0
-            ];
-        }
-        $rptInsuranceData[$key]['paid'] += $paidAmt;
-        if (!empty($InsuranceLevel) && !in_array($InsuranceLevel, $rptInsuranceData[$key]['levels'])) {
-            $rptInsuranceData[$key]['levels'][] = $InsuranceLevel;
-        }
+        $paid = floatval($pay['Paid'] ?? 0);
+        $payDebt = trim($pay['PayDebt'] ?? '');
 
-        // Add to insurance details table
-        if (!isset($insuranceIncomeGroups[$key])) {
-            $insuranceIncomeGroups[$key] = [
-                'title' => $providerName,
-                'items' => []
-            ];
+        // Determine if current or previous month
+        $isCurrentMonth = ($ts >= $currentMonthStart && $ts <= $currentMonthEnd);
+        $isPrevMonth = ($ts >= $prevMonthStart && $ts <= $prevMonthEnd);
+
+        if (!$isCurrentMonth && !$isPrevMonth) continue;
+
+        $period = $isCurrentMonth ? 'current' : 'previous';
+
+        // Categorize based on PayDebt column
+        if (!empty($payDebt)) {
+            // Has PayDebt value = Debt payment
+            $monthComparison['debt'][$period] += $paid;
+        } else {
+            // Empty PayDebt = Sales/Revenue
+            $monthComparison['sales'][$period] += $paid;
         }
 
-        $insuranceIncomeGroups[$key]['items'][] = [
-            'date' => date('n/j/Y', $ts),
-            'category' => $InsuranceLevel,
-            'currency' => $cur,
-            'method' => $pay['PaymentMethod'] ?? 'ບໍ່ລະບຸ',
-            'totalamount' => $paidAmt,
-            'description' => $InsuranceLevel,
-            'ts' => $ts // keep timestamp for sorting
-        ];
+        // Add to total
+        $monthComparison['total'][$period] += $paid;
     }
 }
 
-// Calculate total insurance summary in LAK
-$totalInsuranceAll = 0;
-$totalPaidAll = 0;
-foreach ($rptInsuranceData as $data) {
-    $totalInsuranceAll += $data['total'];
-    $totalPaidAll += $data['paid'];
+// Calculate percentage changes for month comparison
+$monthComparisonWithTrend = [];
+foreach ($monthComparison as $key => $data) {
+    $current = $data['current'];
+    $previous = $data['previous'];
+    
+    if ($previous > 0) {
+        $trend = (($current - $previous) / $previous) * 100;
+    } elseif ($current > 0) {
+        $trend = 100;
+    } else {
+        $trend = 0;
+    }
+    
+    $monthComparisonWithTrend[$key] = [
+        'label' => $data['label'],
+        'current' => $current,
+        'previous' => $previous,
+        'trend' => $trend
+    ];
 }
 
-// Sort details by date descending for each provider
-foreach ($insuranceIncomeGroups as &$group) {
-    usort($group['items'], function ($a, $b) {
-        return $b['ts'] - $a['ts'];
-    });
+// ---------------------------------------------------------
+// ລາຍງານການຂາຍສະເພາະສະກຸນນ້ຳດື່ມກາພູຜາຕາມຂະໜາດ
+// Process Gaa Phu Pha water sales by size from Sell_Details
+// ---------------------------------------------------------
+$gaaPhuPhaBySize = [];
+if (isset($selldetails) && is_array($selldetails)) {
+    $gaaPhuPhaBySize = getSalesDataByProductSize($selldetails, 'ກາພູຜາ');
 }
-unset($group);
+
+// Transform ກາພູຜາ by size data into chart format (use current month data)
+$topLabs = [];
+if (isset($gaaPhuPhaBySize) && is_array($gaaPhuPhaBySize)) {
+    foreach ($gaaPhuPhaBySize as $size => $data) {
+        // Use currentMonth as the main display value, or total if currentMonth is 0
+        $displayQty = isset($data['currentMonth']) ? $data['currentMonth'] : 0;
+        if ($displayQty == 0 && isset($data['prevMonth'])) {
+            $displayQty = $data['prevMonth'];
+        }
+        $topLabs[$size] = $displayQty;
+    }
+    // Sort by value descending and limit to top 15
+    arsort($topLabs);
+    $topLabs = array_slice($topLabs, 0, 15, true);
+}
+
+
 
 ?>
+
+
+
+

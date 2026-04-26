@@ -1,9 +1,9 @@
 <?php
 // Customer Data Fetching
 if (isset($appId) && isset($accessKey)) {
-    $patients = getAppSheetData('Patients', $appId, $accessKey);
+    $Customer = getAppSheetData('Customer', $appId, $accessKey);
 } else {
-    $patients = [];
+    $Customer = [];
 }
 ?>
 
@@ -19,7 +19,7 @@ if (isset($appId) && isset($accessKey)) {
         </div>
     </div>
 
-    <div class="patients-container">
+    <div class="Customer-container">
         <div class="table-responsive">
             <table class="report-table">
                 <thead>
@@ -35,24 +35,22 @@ if (isset($appId) && isset($accessKey)) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (isset($patients) && is_array($patients) && count($patients) > 0): ?>
-                        <?php foreach ($patients as $p): ?>
+                    <?php if (isset($Customer) && is_array($Customer) && count($Customer) > 0): ?>
+                        <?php foreach ($Customer as $c): ?>
                             <tr>
-                                <td><strong><?php echo htmlspecialchars($p['PatientID'] ?? ''); ?></strong></td>
-                                <td><?php echo htmlspecialchars($p['FullName'] ?? 'ບໍ່ລະບຸ'); ?></td>
-                                <td><?php echo htmlspecialchars($p['Gender'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($p['Age'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($p['Village'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($p['Occupation'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($p['DateTime'] ?? ''); ?></td>
+                                <td><strong><?php echo htmlspecialchars($c['Customer_ID'] ?? ''); ?></strong></td>
+                                <td><?php echo htmlspecialchars($c['Customer_Name'] ?? 'ບໍ່ລະບຸ'); ?></td>
+                                <td><?php echo htmlspecialchars($c['Village'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($c['Occupation'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($c['DateTime'] ?? ''); ?></td>
                                 <td>
                                     <div class="action-btns" style="justify-content: center;">
                                         <button class="btn-sm btn-edit"
-                                            onclick='openPatientModal(<?php echo json_encode($p); ?>)'>
+                                            onclick='openPatientModal(<?php echo json_encode($c); ?>)'>
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </button>
                                         <button class="btn-sm btn-delete"
-                                            onclick="confirmDelete('<?php echo htmlspecialchars($p['PatientID'] ?? ''); ?>')">
+                                            onclick="confirmDelete('<?php echo htmlspecialchars($c['PatientID'] ?? ''); ?>')">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     </div>

@@ -8,7 +8,6 @@ function formatCurrency($amount, $currency = 'LAK')
 {
     $prefix = '';
     $suffix = '';
-    $class = '';
 
     switch (strtoupper($currency)) {
         case 'LAK':
@@ -83,3 +82,148 @@ function getTopItems($dataArray, $nameCol, $qtyCol = null)
     arsort($counts);
     return array_slice($counts, 0, 15, true);
 }
+
+/**
+ * Process sales data by product size and month comparison
+ * ປະມວນຜົນຂໍ້ມູນການຂາຍໂດຍຊອກຫາສະກຸນນ້ຳດື່ມກາພູຜາ ແຍກຕາມຂະໜາດ ແລະປຽບທຽບເດືອນ
+ */
+function getSalesDataByProductSize($sellData, $productName = 'ກາພູຜາ')
+{
+    if (!is_array($sellData) || empty($sellData))
+        return [];
+
+    $currentMonth = date('n');
+    $currentYear = date('Y');
+    $prevMonth = ($currentMonth == 1) ? 12 : $currentMonth - 1;
+    $prevYear = ($currentMonth == 1) ? $currentYear - 1 : $currentYear;
+
+    $sizeData = [];
+
+    foreach ($sellData as $row) {
+        $product = trim($row['Product_Name'] ?? '');
+        $size = trim($row['Size'] ?? '');
+        $qty = floatval($row['Qty'] ?? 0);
+
+        // ກວດສອບວ່າເປັນສະກຸນນ້ຳດື່ມກາພູຜາ
+        if (strpos($product, $productName) === false && strpos($productName, $product) === false) {
+            continue;
+        }
+
+        // ຖ້າບໍ່ມີ Size ໃຫ້ຂ້າມ
+        if (empty($size))
+            continue;
+
+        if (!isset($sizeData[$size])) {
+            $sizeData[$size] = [
+                'name' => $size,
+                'currentMonth' => 0,
+                'prevMonth' => 0,
+                'count' => 0
+            ];
+        }
+
+        // ກວດສອບວັນທີ
+        $dateStr = $row['Date'] ?? $row['DateTime'] ?? '';
+        $timestamp = strtotime($dateStr);
+
+        if ($timestamp) {
+            $month = date('n', $timestamp);
+            $year = date('Y', $timestamp);
+
+            if ($month == $currentMonth && $year == $currentYear) {
+                $sizeData[$size]['currentMonth'] += $qty;
+            } elseif ($month == $prevMonth && $year == $prevYear) {
+                $sizeData[$size]['prevMonth'] += $qty;
+            }
+        }
+
+        $sizeData[$size]['count']++;
+    }
+
+    // ຄຳນວນ trend ສໍາລັບແຕ່ລະ size
+    foreach ($sizeData as $size => &$data) {
+        if ($data['prevMonth'] > 0) {
+            $data['trend'] = (($data['currentMonth'] - $data['prevMonth']) / $data['prevMonth']) * 100;
+        } elseif ($data['currentMonth'] > 0) {
+            $data['trend'] = 100;
+        } else {
+            $data['trend'] = 0;
+        }
+    }
+
+    return $sizeData;
+}
+
+
+/**
+ * Process sales data by product size and month comparison
+ * ປະມວນຜົນຂໍ້ມູນການຂາຍໂດຍຊອກຫາສະກຸນນ້ຳດື່ມກາພູຜາ ແຍກຕາມຂະໜາດ ແລະປຽບທຽບເດືອນ
+ */
+function getSumPriceByProductSize($sellData, $productName = 'ກາພູຜາ')
+{
+    if (!is_array($sellData) || empty($sellData))
+        return [];
+
+    $currentMonth = date('n');
+    $currentYear = date('Y');
+    $prevMonth = ($currentMonth == 1) ? 12 : $currentMonth - 1;
+    $prevYear = ($currentMonth == 1) ? $currentYear - 1 : $currentYear;
+
+    $sizeData = [];
+
+    foreach ($sellData as $row) {
+        $product = trim($row['Product_Name'] ?? '');
+        $size = trim($row['Size'] ?? '');
+        $SubTotal_Detail = ($row['SubTotal_Detail'] ?? 0);
+
+        // ກວດສອບວ່າເປັນສະກຸນນ້ຳດື່ມກາພູຜາ
+        if (strpos($product, $productName) === false && strpos($productName, $product) === false) {
+            continue;
+        }
+
+        // ຖ້າບໍ່ມີ Size ໃຫ້ຂ້າມ
+        if (empty($size))
+            continue;
+
+        if (!isset($sizeData[$size])) {
+            $sizeData[$size] = [
+                'name' => $size,
+                'currentMonth' => 0,
+                'prevMonth' => 0,
+                'count' => 0
+            ];
+        }
+
+        // ກວດສອບວັນທີ
+        $dateStr = $row['Date'] ?? $row['DateTime'] ?? '';
+        $timestamp = strtotime($dateStr);
+
+        if ($timestamp) {
+            $month = date('n', $timestamp);
+            $year = date('Y', $timestamp);
+
+            if ($month == $currentMonth && $year == $currentYear) {
+                $sizeData[$size]['currentMonth'] += $SubTotal_Detail;
+            } elseif ($month == $prevMonth && $year == $prevYear) {
+                $sizeData[$size]['prevMonth'] += $SubTotal_Detail;
+            }
+        }
+
+        $sizeData[$size]['count']++;
+    }
+
+    // ຄຳນວນ trend ສໍາລັບແຕ່ລະ size
+    foreach ($sizeData as $size => &$data) {
+        if ($data['prevMonth'] > 0) {
+            $data['trend'] = (($data['currentMonth'] - $data['prevMonth']) / $data['prevMonth']) * 100;
+        } elseif ($data['currentMonth'] > 0) {
+            $data['trend'] = 100;
+        } else {
+            $data['trend'] = 0;
+        }
+    }
+
+    return $sizeData;
+    
+}
+
